@@ -548,8 +548,10 @@
   // ==========================================
   // JEMBATAN API (MOCK & GAS)
   // ==========================================
-  if (IS_PREVIEW && (!window.google || !window.google.script || !window.google.script.run)) {
-    if (!window.google) window.google = {}; if (!window.google.script) window.google.script = {};
+  if (!window.google) window.google = {}; 
+  if (!window.google.script) window.google.script = {};
+
+  if (IS_PREVIEW && !window.google.script.run) {
     let cachedTree = localStorage.getItem('silsilah_mock_tree_v4');
     const dummyTreeData = cachedTree ? JSON.parse(cachedTree) : {
       id: "root-1", nama: "Kakek Buyut", generasi: "Generasi 1", gender: "L", status: "Almarhum", pasangan: "Nenek Buyut",
@@ -579,21 +581,46 @@
       };
     }
     window.google.script.run = createMockRunner(null, null);
-  } else if (!IS_PREVIEW && (!window.google || !window.google.script || !window.google.script.run)) {
+
+  } else if (!IS_PREVIEW && !window.google.script.run) {
+    
     function createApiRunner(successCb, errorCb) {
       return {
-        withSuccessHandler: function(cb) { return createApiRunner(cb, errorCb); }, withFailureHandler: function(cb) { return createApiRunner(successCb, cb); },
-        _call: function(a, p) { fetch(GAS_URL, {method:'POST',body:JSON.stringify({action:a,params:p})}).then(r=>r.json()).then(d=>{if(d.error&&errorCb)errorCb(d.error); else if(successCb)successCb(d.result);}).catch(x=>{if(errorCb)errorCb(x)}); },
-        validateSession: function(t) { this._call('validateSession',[t]); }, checkPassword: function(p,r,g) { this._call('checkPassword',[p,r,g]); }, logout: function(t) { this._call('logout',[t]); },
-        getDashboardStats: function() { this._call('getDashboardStats',[]); }, getGenerasiList: function() { this._call('getGenerasiList',[]); }, getParentsList: function(g) { this._call('getParentsList',[g]); },
-        getSearchIndex: function() { this._call('getSearchIndex',[]); }, getFamilyTreeData: function() { this._call('getFamilyTreeData',[]); },
-        processForm: function(d,t) { this._call('processForm',[d,t]); }, getMemberById: function(i) { this._call('getMemberById',[i]); }, deleteMember: function(i,t) { this._call('deleteMember',[i,t]); },
+        withSuccessHandler: function(cb) { return createApiRunner(cb, errorCb); }, 
+        withFailureHandler: function(cb) { return createApiRunner(successCb, cb); },
+        _call: function(a, p) { 
+          fetch(GAS_URL, {
+            method: 'POST', 
+            body: JSON.stringify({action:a, params:p}),
+            headers: { 'Content-Type': 'text/plain;charset=utf-8' }
+          })
+          .then(r => r.json())
+          .then(d => {
+            if(d.error && errorCb) errorCb(d.error); 
+            else if(successCb) successCb(d.result);
+          })
+          .catch(x => { if(errorCb) errorCb(x); }); 
+        },
+        validateSession: function(t) { this._call('validateSession',[t]); }, 
+        checkPassword: function(p,r,g) { this._call('checkPassword',[p,r,g]); }, 
+        logout: function(t) { this._call('logout',[t]); },
+        getDashboardStats: function() { this._call('getDashboardStats',[]); }, 
+        getGenerasiList: function() { this._call('getGenerasiList',[]); }, 
+        getParentsList: function(g) { this._call('getParentsList',[g]); },
+        getSearchIndex: function() { this._call('getSearchIndex',[]); }, 
+        getFamilyTreeData: function() { this._call('getFamilyTreeData',[]); },
+        processForm: function(d,t) { this._call('processForm',[d,t]); }, 
+        getMemberById: function(i) { this._call('getMemberById',[i]); }, 
+        deleteMember: function(i,t) { this._call('deleteMember',[i,t]); },
         updatePengumuman: function(txt, t) { this._call('updatePengumuman',[txt, t]); }
       };
     }
     window.google.script.run = createApiRunner(null, null);
   }
 
+  // ==========================================
+  // FUNGSI UTAMA UI
+  // ==========================================
   function getDisplayUrl(url) { if (!url) return ""; if (url.includes("drive.google.com/uc?export=view")) { const m = url.match(/id=([^&]+)/); if (m&&m[1]) return "https://drive.google.com/thumbnail?sz=w1000&id="+m[1]; } return url; }
   
   function switchTab(tab) {
@@ -607,18 +634,70 @@
   }
 
   function toggleLoginPassword() { const i=document.getElementById('login-password'); const ic=document.getElementById('login-eye-icon'); if(i.type==='password'){i.type='text';ic.className='fas fa-eye-slash';}else{i.type='password';ic.className='fas fa-eye';} }
-  function setLoginRole(role) { loginRole = role; const a=document.getElementById('role-btn-admin'); const u=document.getElementById('role-btn-user'); const g=document.getElementById('login-generasi-wrap'); if(role==='admin'){a.className='flex-1 py-2.5 rounded-xl text-sm font-bold bg-white text-brand-600 shadow';u.className='flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500';g.classList.add('hidden');}else{u.className='flex-1 py-2.5 rounded-xl text-sm font-bold bg-white text-brand-600 shadow';a.className='flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500';g.classList.remove('hidden'); const s=document.getElementById('login-generasi'); if(s.options.length<=1){for(let i=1;i<=10;i++)s.insertAdjacentHTML('beforeend',`<option value="Generasi ${i}">Generasi ${i}</option>`);} } }
-  function initSession() { const t=sessionStorage.getItem('sst'); if(t){google.script.run.withSuccessHandler(s=>{if(s){sessionToken=t;sessionRole=s.role;sessionGenerasi=s.generasi;document.getElementById('login-overlay').style.display='none';applyRoleUI();bootApp();}else{sessionStorage.clear();showLoginOverlay();}}).validateSession(t);}else{showLoginOverlay();} }
+  
+  function setLoginRole(role) { 
+    loginRole = role; 
+    const a=document.getElementById('role-btn-admin'); const u=document.getElementById('role-btn-user'); const g=document.getElementById('login-generasi-wrap'); 
+    if(role==='admin'){
+      a.className='flex-1 py-2.5 rounded-xl text-sm font-bold bg-white text-brand-600 shadow';
+      u.className='flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500';
+      g.classList.add('hidden');
+    }else{
+      u.className='flex-1 py-2.5 rounded-xl text-sm font-bold bg-white text-brand-600 shadow';
+      a.className='flex-1 py-2.5 rounded-xl text-sm font-bold text-slate-500';
+      g.classList.remove('hidden'); 
+      const s=document.getElementById('login-generasi'); 
+      if(s.options.length<=1){
+        for(let i=1;i<=10;i++) s.insertAdjacentHTML('beforeend',`<option value="Generasi ${i}">Generasi ${i}</option>`);
+      } 
+    } 
+  }
+
+  function initSession() { 
+    const t=sessionStorage.getItem('sst'); 
+    if(t){
+      google.script.run.withSuccessHandler(s=>{
+        if(s){
+          sessionToken=t;sessionRole=s.role;sessionGenerasi=s.generasi;
+          document.getElementById('login-overlay').style.display='none';
+          applyRoleUI();bootApp();
+        }else{
+          sessionStorage.clear();showLoginOverlay();
+        }
+      }).validateSession(t);
+    }else{
+      showLoginOverlay();
+    } 
+  }
+
   function showLoginOverlay() { const o=document.getElementById('login-overlay'); o.style.display='flex'; o.style.opacity='1'; setTimeout(()=>document.getElementById('login-password').focus(),300); }
   
   function doLogin() { 
-    const p=document.getElementById('login-password').value; const g=loginRole==='user'?document.getElementById('login-generasi').value:''; const err=document.getElementById('login-error'); const btn=document.getElementById('login-btn'); err.classList.add('hidden'); 
-    if(!p){err.textContent='Isi password';err.classList.remove('hidden');return;} if(loginRole==='user'&&!g){err.textContent='Pilih generasi';err.classList.remove('hidden');return;} 
+    const p=document.getElementById('login-password').value; 
+    const g=loginRole==='user'?document.getElementById('login-generasi').value:''; 
+    const err=document.getElementById('login-error'); 
+    const btn=document.getElementById('login-btn'); 
+    err.classList.add('hidden'); 
+    
+    if(!p){err.textContent='Isi password';err.classList.remove('hidden');return;} 
+    if(loginRole==='user'&&!g){err.textContent='Pilih generasi';err.classList.remove('hidden');return;} 
+    
     btn.disabled=true;btn.innerHTML='<i class="fas fa-spinner fa-spin mr-2"></i>'; 
+    
     google.script.run.withSuccessHandler(r=>{
-      if(r.valid){sessionToken=r.token;sessionRole=r.role;sessionGenerasi=r.generasi;sessionStorage.setItem('sst',r.token);sessionStorage.setItem('ssr',r.role);sessionStorage.setItem('ssg',r.generasi);document.getElementById('login-overlay').style.display='none';applyRoleUI();bootApp();}
-      else{err.textContent='Password salah';err.classList.remove('hidden');btn.disabled=false;btn.innerHTML='Masuk';}
-    }).withFailureHandler(()=>{err.textContent='Error Server';err.classList.remove('hidden');btn.disabled=false;btn.innerHTML='Masuk';}).checkPassword(p,loginRole,g); 
+      if(r.valid){
+        sessionToken=r.token;sessionRole=r.role;sessionGenerasi=r.generasi;
+        sessionStorage.setItem('sst',r.token);sessionStorage.setItem('ssr',r.role);sessionStorage.setItem('ssg',r.generasi);
+        document.getElementById('login-overlay').style.display='none';
+        applyRoleUI();bootApp();
+      } else{
+        err.textContent='Password salah';err.classList.remove('hidden');
+        btn.disabled=false;btn.innerHTML='Masuk';
+      }
+    }).withFailureHandler(()=>{
+      err.textContent='Koneksi Gagal / Server Error';err.classList.remove('hidden');
+      btn.disabled=false;btn.innerHTML='Masuk';
+    }).checkPassword(p,loginRole,g); 
   }
   
   function applyRoleUI() { const isA=sessionRole==='admin'; document.querySelectorAll('.admin-only').forEach(el=>el.style.display=isA?'':'none'); document.getElementById('role-badge-text').textContent=isA?'ADMIN':(sessionGenerasi||'USER'); }
